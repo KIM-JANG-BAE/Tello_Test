@@ -5,6 +5,7 @@ from flask import render_template
 from flask import request
 from flask import Response
 
+import droneapp.models.course
 from droneapp.models.drone_manager import DroneManager
 
 import config
@@ -96,6 +97,43 @@ def video_generator():
 def video_feed():
     return Response(None, mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
+# flask 실행을 위해 필요한 함수.
 def run():
     app.run(host=config.WEB_ADDRESS, port=config.WEB_PORT, threaded=True)
+
+# 코스를 들고오는 함수
+def get_courses(course_id = None):
+    drone = get_drone()
+    courses = droneapp.models.course.get_courses(drone)
+    if course_id:
+        return courses.get(course_id)
+    return courses
+
+@app.route('/games/shake/')
+def game_shake():
+    courses = get_courses()
+    return render_template('game/shake.html', courses = courses)
+
+@app.route('/api/shake/start', method=['GET','POST'])
+def shake_start():
+    course_id = request.args.get('id')
+    # post로 할때는 form을 사용한다.
+    # course_id = request.form.get('id) 
+
+    course = get_courses(int(course_id))
+    course.start()
+    return jsonify(result='started'), 200
+
+@app.route('/api/shake/run', method=['GET','POST'])
+def shake_run():
+    # course_id = request.args.get('id')
+    # post로 할때는 form을 사용한다.
+    course_id = request.form.get('id') 
+
+    course = get_courses(int(course_id))
+    course.run()
+    return jsonify(
+        elapsed = course.elapsed,
+        status = course.status,
+        running = course.is_running), 200
+
